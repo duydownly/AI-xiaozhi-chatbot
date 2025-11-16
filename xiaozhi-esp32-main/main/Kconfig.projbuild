@@ -123,6 +123,17 @@ choice BOARD_TYPE
     config BOARD_TYPE_BREAD_COMPACT_WIFI_LCD
         bool "Bread Compact WiFi + LCD (面包板)"
         depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_PUPPY_ROBOT
+        bool "Puppy Robot"
+        depends on IDF_TARGET_ESP32S3
+        # Puppy Robot kế thừa Otto nhưng không dùng camera
+        select USE_LCD_DISPLAY            # bật màn hình LCD
+        select USE_SERVO_MOTOR           # bật module servo
+        select BOARD_DISABLE_CAMERA      # tắt toàn bộ camera
+    help
+        Robot chó 4 chân có LCD (dựa trên Otto Robot).
+        Không sử dụng camera, chỉ dùng hiển thị + servo.
+
     config BOARD_TYPE_BREAD_COMPACT_WIFI_CAM
         bool "Bread Compact WiFi + LCD + Camera (面包板)"
         depends on IDF_TARGET_ESP32S3     
