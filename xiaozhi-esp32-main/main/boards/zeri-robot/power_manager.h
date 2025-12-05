@@ -68,8 +68,8 @@ private:
     }
 
 public:
-    PowerManager(gpio_num_t charging_pin, adc_unit_t adc_unit = ADC_UNIT_2,
-                 adc_channel_t adc_channel = ADC_CHANNEL_3)
+    PowerManager(gpio_num_t charging_pin, adc_unit_t adc_unit = ADC_UNIT_1,
+                 adc_channel_t adc_channel = ADC_CHANNEL_0)
         : charging_pin_(charging_pin), adc_unit_(adc_unit), adc_channel_(adc_channel) {
         gpio_config_t io_conf = {};
         io_conf.intr_type = GPIO_INTR_DISABLE;

@@ -41,6 +41,7 @@ void Puppy::Init(int left_leg, int right_leg, int left_foot, int right_foot, int
 void Puppy::AttachServos() {
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (servo_pins_[i] != -1) {
+            ESP_LOGI(TAG, "AttachServos: attaching servo %d to pin %d", i, servo_pins_[i]);
             servo_[i].Attach(servo_pins_[i]);
         }
     }
@@ -49,6 +50,7 @@ void Puppy::AttachServos() {
 void Puppy::DetachServos() {
     for (int i = 0; i < SERVO_COUNT; i++) {
         if (servo_pins_[i] != -1) {
+            ESP_LOGI(TAG, "DetachServos: detaching servo %d from pin %d", i, servo_pins_[i]);
             servo_[i].Detach();
         }
     }
@@ -79,6 +81,7 @@ void Puppy::MoveServos(int time, int servo_target[]) {
         SetRestState(false);
 
     final_time_ = millis() + time;
+    ESP_LOGI(TAG, "MoveServos: time=%d", time);
     if (time > 10) {
         for (int i = 0; i < SERVO_COUNT; i++) {
             if (servo_pins_[i] != -1) {
@@ -90,7 +93,10 @@ void Puppy::MoveServos(int time, int servo_target[]) {
         while (millis() < final_time_) {
             for (int i = 0; i < SERVO_COUNT; i++) {
                 if (servo_pins_[i] != -1) {
-                    servo_[i].SetPosition(servo_[i].GetPosition() + increment_[i]);
+                    int from = servo_[i].GetPosition();
+                    int to = from + (int)increment_[i];
+                    ESP_LOGI(TAG, "MoveServos: servo=%d pin=%d from=%d to=%d", i, servo_pins_[i], from, to);
+                    servo_[i].SetPosition(from + increment_[i]);
                 }
             }
             vTaskDelay(pdMS_TO_TICKS(10));
@@ -98,6 +104,7 @@ void Puppy::MoveServos(int time, int servo_target[]) {
     } else {
         for (int i = 0; i < SERVO_COUNT; i++) {
             if (servo_pins_[i] != -1) {
+                ESP_LOGI(TAG, "MoveServos (direct): servo=%d pin=%d to=%d", i, servo_pins_[i], servo_target[i]);
                 servo_[i].SetPosition(servo_target[i]);
             }
         }
@@ -111,6 +118,7 @@ void Puppy::MoveSingle(int position, int servo_number) {
 
     if (servo_number >= 0 && servo_number < SERVO_COUNT &&
         servo_pins_[servo_number] != -1) {
+        ESP_LOGI(TAG, "MoveSingle: servo=%d pin=%d pos=%d (before=%d)", servo_number, servo_pins_[servo_number], position, servo_[servo_number].GetPosition());
         servo_[servo_number].SetPosition(position);
     }
 }
@@ -143,9 +151,12 @@ void Puppy::Execute(int amplitude[SERVO_COUNT], int offset[SERVO_COUNT],
     int cycles = (int)steps;
 
     for (int i = 0; i < cycles; i++)
-        OscillateServos(amplitude, offset, period, phase_diff);
+        OscillateServos(amplitude, offset, period, phase_diff, 1.0f);
 
-    OscillateServos(amplitude, offset, period, phase_diff, steps - cycles);
+    float remainder = steps - cycles;
+    if (remainder > 0.0f) {
+        OscillateServos(amplitude, offset, period, phase_diff, remainder);
+    }
 }
 
 void Puppy::Execute2(int amplitude[SERVO_COUNT], int center_angle[SERVO_COUNT],
@@ -245,12 +256,14 @@ void Puppy::Moonwalker(float steps, int period, int height, int dir) {
 //-- TAIL ACTIONS ------------------------------------------------//
 ///////////////////////////////////////////////////////////////////
 void Puppy::TailWag(int times, int speed) {
-    for (int i = 0; i < times; i++) {
-        MoveSingle(60, TAIL);
-        vTaskDelay(pdMS_TO_TICKS(speed));
-        MoveSingle(120, TAIL);
-        vTaskDelay(pdMS_TO_TICKS(speed));
-    }
+    ESP_LOGI(TAG, "TailWag (osc): times=%d period=%d tail_pin=%d", times, speed, servo_pins_[TAIL]);
+
+    int A[SERVO_COUNT] = {0, 0, 0, 0, 30};
+    int O[SERVO_COUNT] = {0, 0, 0, 0, 0};
+    double ph[SERVO_COUNT] = {0, 0, 0, 0, 0};
+
+    /* Use Execute to oscillate only the tail servo similarly to Walk */
+    Execute(A, O, speed, ph, (float)times);
 }
 
 void Puppy::TailHappy() {

@@ -96,6 +96,8 @@ void Oscillator::Attach(int pin, bool rev) {
     // Write(pos_);
     previous_servo_command_millis_ = millis();
 
+    ESP_LOGI(TAG, "Attach: pin=%d ledc_channel=%d rev=%d", pin_, (int)ledc_channel_, (int)rev_);
+
     is_attached_ = true;
 }
 
@@ -103,6 +105,7 @@ void Oscillator::Detach() {
     if (!is_attached_)
         return;
 
+    ESP_LOGI(TAG, "Detach: pin=%d ledc_channel=%d", pin_, (int)ledc_channel_);
     ESP_ERROR_CHECK(ledc_stop(ledc_speed_mode_, ledc_channel_, 0));
 
     is_attached_ = false;
@@ -155,6 +158,7 @@ void Oscillator::Write(int position) {
     angle = std::min(std::max(angle, 0), 180);
 
     uint32_t duty = (uint32_t)(((angle / 180.0) * 2.0 + 0.5) * 8191 / 20.0);
+    ESP_LOGI(TAG, "Write: pin=%d angle=%d trim=%d pos=%d duty=%u channel=%d", pin_, angle, trim_, pos_, duty, (int)ledc_channel_);
 
     ESP_ERROR_CHECK(ledc_set_duty(ledc_speed_mode_, ledc_channel_, duty));
     ESP_ERROR_CHECK(ledc_update_duty(ledc_speed_mode_, ledc_channel_));

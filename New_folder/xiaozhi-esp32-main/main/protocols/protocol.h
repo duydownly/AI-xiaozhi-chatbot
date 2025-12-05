@@ -63,6 +63,12 @@ public:
     void OnConnected(std::function<void()> callback);
     void OnDisconnected(std::function<void()> callback);
 
+    // Public wrapper to send raw text/JSON to the server transport.
+    // This calls the transport-specific `SendText` implementation.
+    bool SendRawText(const std::string& text) {
+        return SendText(text);
+    }
+
     virtual bool Start() = 0;
     virtual bool OpenAudioChannel() = 0;
     virtual void CloseAudioChannel() = 0;

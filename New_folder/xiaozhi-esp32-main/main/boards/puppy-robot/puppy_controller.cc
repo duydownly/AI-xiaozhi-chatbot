@@ -156,111 +156,157 @@ private:
     /* ============================================================
        SERVO SEQUENCE HANDLER (AI custom actions)
        ============================================================ */
-    void HandleServoSequence(const char* json_str) {
-        if (!json_str || strlen(json_str) == 0)
-            return;
+ void HandleServoSequence(const char* json_str) {
+    if (!json_str || strlen(json_str) == 0)
+        return;
+    int json_len = (int)strlen(json_str);
+    ESP_LOGI(TAG, "HandleServoSequence: raw len=%d json='%.128s'", json_len, json_str);
 
-        cJSON* json = cJSON_Parse(json_str);
-        if (!json) return;
-
-        cJSON* actions = cJSON_GetObjectItem(json, "a");
-        if (!cJSON_IsArray(actions)) {
-            cJSON_Delete(json);
-            return;
-        }
-
-        const char* names[5] = {"ll", "rl", "lf", "rf", "tail"};
-        int pos[5] = {90,90,90,90,90};
-
-        int count = cJSON_GetArraySize(actions);
-
-        for (int i = 0; i < count; i++) {
-            cJSON* act = cJSON_GetArrayItem(actions, i);
-
-            /* OSC MODE */
-            cJSON* osc = cJSON_GetObjectItem(act, "osc");
-            if (cJSON_IsObject(osc)) {
-
-                int A[5] = {0};
-                int C[5] = {90,90,90,90,90};
-                double P[5] = {0};
-                int period = 400;
-                float cyc = 5;
-
-                cJSON* a = cJSON_GetObjectItem(osc, "a");
-                if (cJSON_IsObject(a)) {
-                    for (int j = 0; j < 5; j++) {
-                        cJSON* v = cJSON_GetObjectItem(a, names[j]);
-                        if (cJSON_IsNumber(v)) A[j] = v->valueint;
-                    }
-                }
-
-                cJSON* o = cJSON_GetObjectItem(osc, "o");
-                if (cJSON_IsObject(o)) {
-                    for (int j = 0; j < 5; j++) {
-                        cJSON* v = cJSON_GetObjectItem(o, names[j]);
-                        if (cJSON_IsNumber(v)) C[j] = v->valueint;
-                    }
-                }
-
-                cJSON* ph = cJSON_GetObjectItem(osc, "ph");
-                if (cJSON_IsObject(ph)) {
-                    for (int j = 0; j < 5; j++) {
-                        cJSON* v = cJSON_GetObjectItem(ph, names[j]);
-                        if (cJSON_IsNumber(v))
-                            P[j] = v->valuedouble * 3.1415926535 / 180.0;
-                    }
-                }
-
-                cJSON* p = cJSON_GetObjectItem(osc, "p");
-                if (cJSON_IsNumber(p)) period = p->valueint;
-
-                cJSON* c = cJSON_GetObjectItem(osc, "c");
-                if (cJSON_IsNumber(c)) cyc = c->valuedouble;
-
-                puppy_.Execute2(A, C, period, P, cyc);
-
-                memcpy(pos, C, sizeof(pos));
-            }
-
-            /* DIRECT MOVE */
-            else {
-                int target[5];
-                memcpy(target, pos, sizeof(pos));
-
-                cJSON* s = cJSON_GetObjectItem(act, "s");
-                if (cJSON_IsObject(s)) {
-                    for (int j = 0; j < 5; j++) {
-                        cJSON* v = cJSON_GetObjectItem(s, names[j]);
-                        if (cJSON_IsNumber(v)) target[j] = v->valueint;
-                    }
-                }
-
-                int speed = 800;
-                cJSON* v = cJSON_GetObjectItem(act, "v");
-                if (cJSON_IsNumber(v)) speed = v->valueint;
-
-                puppy_.MoveServos(speed, target);
-                memcpy(pos, target, sizeof(pos));
-            }
-
-            cJSON* delay = cJSON_GetObjectItem(act, "d");
-            if (cJSON_IsNumber(delay))
-                vTaskDelay(pdMS_TO_TICKS(delay->valueint));
-        }
-
-        cJSON_Delete(json);
+    int hex_print = std::min(json_len, 64);
+    char hexbuf[256];
+    int hp = 0;
+    for (int i = 0; i < hex_print && hp < (int)sizeof(hexbuf)-4; ++i) {
+        hp += snprintf(hexbuf + hp, sizeof(hexbuf) - hp, "%02X ", (uint8_t)json_str[i]);
     }
+    hexbuf[hp] = '\0';
+    ESP_LOGI(TAG, "HandleServoSequence: raw hex (first %d bytes): %s", hex_print, hexbuf);
+
+    cJSON* json = cJSON_Parse(json_str);
+    if (!json) return;
+
+    cJSON* actions = cJSON_GetObjectItem(json, "a");
+    if (!cJSON_IsArray(actions)) {
+        cJSON_Delete(json);
+        return;
+    }
+
+    const char* names[5] = {"ll", "rl", "lf", "rf", "tail"};
+    int pos[5] = {90,90,90,90,90};
+
+    int count = cJSON_GetArraySize(actions);
+
+    for (int i = 0; i < count; i++) {
+        cJSON* act = cJSON_GetArrayItem(actions, i);
+
+        /* ==========================================================
+           AUTO-DETECT TAIL WAG TRIGGER
+           Nếu JSON có "id":5 hoặc liên quan đến tail → tự vẫy đuôi
+           ========================================================== */
+        cJSON* idv = cJSON_GetObjectItem(act, "id");
+        if (cJSON_IsNumber(idv)) {
+
+            int id = idv->valueint;
+
+            /* Nếu AI dùng id=5 cho tail thì để 5, nếu id=4 thì sửa lại */
+            if (id == 5) {
+                ESP_LOGI(TAG, "AUTO TailWag triggered (id==5) from servo_sequence");
+
+                /* Vẫy 2 lần nhẹ, speed 200 */
+                puppy_.TailWag(10, 100);
+
+                cJSON_Delete(json);
+                return;
+            }
+        }
+
+        /* ==========================================================
+           OSC MODE
+           ========================================================== */
+        cJSON* osc = cJSON_GetObjectItem(act, "osc");
+        if (cJSON_IsObject(osc)) {
+
+            int A[5] = {0};
+            int C[5] = {90,90,90,90,90};
+            double P[5] = {0};
+            int period = 400;
+            float cyc = 5;
+
+            cJSON* a = cJSON_GetObjectItem(osc, "a");
+            if (cJSON_IsObject(a)) {
+                for (int j = 0; j < 5; j++) {
+                    cJSON* v = cJSON_GetObjectItem(a, names[j]);
+                    if (cJSON_IsNumber(v)) A[j] = v->valueint;
+                }
+            }
+
+            cJSON* o = cJSON_GetObjectItem(osc, "o");
+            if (cJSON_IsObject(o)) {
+                for (int j = 0; j < 5; j++) {
+                    cJSON* v = cJSON_GetObjectItem(o, names[j]);
+                    if (cJSON_IsNumber(v)) C[j] = v->valueint;
+                }
+            }
+
+            cJSON* ph = cJSON_GetObjectItem(osc, "ph");
+            if (cJSON_IsObject(ph)) {
+                for (int j = 0; j < 5; j++) {
+                    cJSON* v = cJSON_GetObjectItem(ph, names[j]);
+                    if (cJSON_IsNumber(v))
+                        P[j] = v->valuedouble * 3.1415926535 / 180.0;
+                }
+            }
+
+            cJSON* p = cJSON_GetObjectItem(osc, "p");
+            if (cJSON_IsNumber(p)) period = p->valueint;
+
+            cJSON* c = cJSON_GetObjectItem(osc, "c");
+            if (cJSON_IsNumber(c)) cyc = c->valuedouble;
+
+            ESP_LOGI(TAG, "HandleServoSequence: OSC action: period=%d cyc=%f", period, cyc);
+            puppy_.Execute2(A, C, period, P, cyc);
+
+            memcpy(pos, C, sizeof(pos));
+        }
+
+        /* ==========================================================
+           DIRECT MOVE
+           ========================================================== */
+        else {
+            int target[5];
+            memcpy(target, pos, sizeof(pos));
+
+            cJSON* s = cJSON_GetObjectItem(act, "s");
+            if (cJSON_IsObject(s)) {
+                for (int j = 0; j < 5; j++) {
+                    cJSON* v = cJSON_GetObjectItem(s, names[j]);
+                    if (cJSON_IsNumber(v)) target[j] = v->valueint;
+                }
+            }
+
+            int speed = 800;
+            cJSON* v = cJSON_GetObjectItem(act, "v");
+            if (cJSON_IsNumber(v)) speed = v->valueint;
+
+            ESP_LOGI(TAG, "HandleServoSequence: DIRECT move targets=%d,%d,%d,%d,%d speed=%d",
+                     target[0], target[1], target[2], target[3], target[4], speed);
+
+            puppy_.MoveServos(speed, target);
+            memcpy(pos, target, sizeof(pos));
+        }
+
+        cJSON* delay = cJSON_GetObjectItem(act, "d");
+        if (cJSON_IsNumber(delay))
+            vTaskDelay(pdMS_TO_TICKS(delay->valueint));
+    }
+
+    cJSON_Delete(json);
+}
 
     /* ============================================================
        TAIL ACTIONS
        ============================================================ */
     void TailWag(int amount, int speed) {
-        int A[5] = {0,0,0,0, amount};
-        int C[5] = {90,90,90,90,90};
-        double P[5] = {0};
+        int times = amount > 0 ? amount : 4;
+        int sp = speed > 0 ? speed : 300;
 
-        puppy_.Execute2(A, C, speed, P, 3);
+        /* For quick testing, cap the number of wags so we can observe behavior */
+        int capped = std::min(times, 2);
+        ESP_LOGI(TAG, "TailWag wrapper called: requested=%d capped=%d speed=%d", times, capped, sp);
+
+        /* Move to neutral briefly then perform capped wag */
+        int center[SERVO_COUNT] = {90, 90, 90, 90, 90};
+        puppy_.MoveServos(200, center);
+        puppy_.TailWag(capped, sp);
     }
 
     void TailHappy() {
@@ -349,11 +395,17 @@ public:
 
         action_queue_ = xQueueCreate(10, sizeof(PuppyActionParams));
 
+        /* Make sure the action task is running and servos attached early so
+           the initial HOME (and any incoming actions) are executed. */
+        StartActionTaskIfNeeded();
+        puppy_.AttachServos();
+
         LoadTrimsFromNVS();
 
-        QueueAction(ACTION_HOME, 1, 800, 0, 0);
-
         RegisterMcpTools();
+
+        /* Queue initial home after tools are registered */
+        QueueAction(ACTION_HOME, 1, 800, 0, 0);
     }
 
     /* ============================================================
@@ -367,8 +419,10 @@ public:
         p.direction = direction;
         p.amount = amount;
 
-        xQueueSend(action_queue_, &p, portMAX_DELAY);
         StartActionTaskIfNeeded();
+        ESP_LOGI(TAG, "QueueAction queued: type=%d steps=%d speed=%d dir=%d amt=%d",
+                 p.action_type, p.steps, p.speed, p.direction, p.amount);
+        xQueueSend(action_queue_, &p, portMAX_DELAY);
     }
 
     void QueueServoSequence(const char* json_str) {
@@ -376,8 +430,9 @@ public:
         p.action_type = ACTION_SERVO_SEQUENCE;
         strncpy(p.servo_sequence_json, json_str, sizeof(p.servo_sequence_json)-1);
 
-        xQueueSend(action_queue_, &p, portMAX_DELAY);
         StartActionTaskIfNeeded();
+        ESP_LOGI(TAG, "QueueServoSequence queued (len=%d)", (int)strlen(p.servo_sequence_json));
+        xQueueSend(action_queue_, &p, portMAX_DELAY);
     }
 };  // <-- THIS WAS MISSING
 

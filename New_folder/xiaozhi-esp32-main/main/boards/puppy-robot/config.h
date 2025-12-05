@@ -46,17 +46,17 @@
 #define DISPLAY_CS_PIN               GPIO_NUM_12
 
 #define LCD_TYPE_ST7789_SERIAL
-#define DISPLAY_WIDTH  240
+#define DISPLAY_WIDTH 240
 #define DISPLAY_HEIGHT 240
+#define DISPLAY_MIRROR_X true
+#define DISPLAY_MIRROR_Y false
+#define DISPLAY_SWAP_XY true
 #define DISPLAY_INVERT_COLOR true
-#define DISPLAY_RGB_ORDER      LCD_RGB_ELEMENT_ORDER_RGB
-#define DISPLAY_SWAP_XY        false
-#define DISPLAY_MIRROR_X       false
-#define DISPLAY_MIRROR_Y       false
-#define DISPLAY_OFFSET_X       0
-#define DISPLAY_OFFSET_Y       0
+#define DISPLAY_RGB_ORDER LCD_RGB_ELEMENT_ORDER_RGB
+#define DISPLAY_OFFSET_X 0
+#define DISPLAY_OFFSET_Y 40
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
-#define DISPLAY_SPI_MODE       3
+#define DISPLAY_SPI_MODE 3
 
 /* =======================
    Boot Button

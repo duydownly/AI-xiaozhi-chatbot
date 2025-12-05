@@ -172,6 +172,10 @@ bool WebsocketProtocol::OpenAudioChannel() {
     });
 
     ESP_LOGI(TAG, "Connecting to websocket server: %s with version: %d", url.c_str(), version_);
+    // Log which token and ids are being used (mask token body)
+    std::string masked_token = token.empty() ? std::string("(none)") : std::string("Bearer ****");
+    ESP_LOGI(TAG, "Websocket headers: Authorization=%s Device-Id=%s Client-Id=%s",
+             masked_token.c_str(), SystemInfo::GetMacAddress().c_str(), Board::GetInstance().GetUuid().c_str());
     if (!websocket_->Connect(url.c_str())) {
         ESP_LOGE(TAG, "Failed to connect to websocket server");
         SetError(Lang::Strings::SERVER_NOT_CONNECTED);
@@ -180,6 +184,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
 
     // Send hello message to describe the client
     auto message = GetHelloMessage();
+    ESP_LOGI(TAG, "Websocket Hello message: %.512s", message.c_str());
     if (!SendText(message)) {
         return false;
     }

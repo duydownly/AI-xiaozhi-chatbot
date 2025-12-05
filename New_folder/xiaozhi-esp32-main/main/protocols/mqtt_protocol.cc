@@ -63,6 +63,9 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
     int keepalive_interval = settings.GetInt("keepalive", 240);
     publish_topic_ = settings.GetString("publish_topic");
 
+    ESP_LOGI(TAG, "MQTT config: endpoint=%s client_id=%s publish_topic=%s username=%s",
+             endpoint.c_str(), client_id.c_str(), publish_topic_.c_str(), username.c_str());
+
     if (endpoint.empty()) {
         ESP_LOGW(TAG, "MQTT endpoint is not specified");
         if (report_error) {
@@ -130,6 +133,7 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
     } else {
         broker_address = endpoint;
     }
+    ESP_LOGI(TAG, "MQTT resolved broker %s:%d", broker_address.c_str(), broker_port);
     if (!mqtt_->Connect(broker_address, broker_port, client_id, username, password)) {
         ESP_LOGE(TAG, "Failed to connect to endpoint");
         SetError(Lang::Strings::SERVER_NOT_CONNECTED);
@@ -208,6 +212,7 @@ bool MqttProtocol::OpenAudioChannel() {
     xEventGroupClearBits(event_group_handle_, MQTT_PROTOCOL_SERVER_HELLO_EVENT);
 
     auto message = GetHelloMessage();
+    ESP_LOGI(TAG, "MQTT Hello message: %.512s", message.c_str());
     if (!SendText(message)) {
         return false;
     }
@@ -337,6 +342,9 @@ void MqttProtocol::ParseServerHello(const cJSON* root) {
     udp_port_ = cJSON_GetObjectItem(udp, "port")->valueint;
     auto key = cJSON_GetObjectItem(udp, "key")->valuestring;
     auto nonce = cJSON_GetObjectItem(udp, "nonce")->valuestring;
+
+    ESP_LOGI(TAG, "Server hello: session=%s udp_server=%s udp_port=%d sample_rate=%d frame_duration=%d",
+             session_id_.c_str(), udp_server_.c_str(), udp_port_, server_sample_rate_, server_frame_duration_);
 
     // auto encryption = cJSON_GetObjectItem(udp, "encryption")->valuestring;
     // ESP_LOGI(TAG, "UDP server: %s, port: %d, encryption: %s", udp_server_.c_str(), udp_port_, encryption);

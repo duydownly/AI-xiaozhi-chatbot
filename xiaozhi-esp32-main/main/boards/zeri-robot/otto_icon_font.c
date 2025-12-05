@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 20 px
  * Bpp: 1
- * Opts: --bpp 1 --size 20 --no-compress --stride 1 --align 1 --font fontawesome-webfont.ttf --range 61744,61633,61480 --format lvgl -o PUPPY_ICON_FONT.c
+ * Opts: --bpp 1 --size 20 --no-compress --stride 1 --align 1 --font fontawesome-webfont.ttf --range 61744,61633,61480 --format lvgl -o OTTO_ICON_FONT.c
  ******************************************************************************/
 
 #ifdef __has_include
@@ -18,11 +18,11 @@
 #include "lvgl/lvgl.h"
 #endif
 
-#ifndef ENABLE_PUPPY_ICON_FONT
-#define ENABLE_PUPPY_ICON_FONT 1
+#ifndef ENABLE_OTTO_ICON_FONT
+#define ENABLE_OTTO_ICON_FONT 1
 #endif
 
-#if ENABLE_PUPPY_ICON_FONT
+#if ENABLE_OTTO_ICON_FONT
 
 /*-----------------
  *    BITMAPS
@@ -70,9 +70,9 @@ static lv_font_fmt_txt_glyph_cache_t cache;
 #endif
 
 #if LVGL_VERSION_MAJOR >= 8
-static const lv_font_fmt_txt_dsc_t puppy_icon_font_dsc = {
+static const lv_font_fmt_txt_dsc_t otto_icon_font_dsc = {
 #else
-static lv_font_fmt_txt_dsc_t puppy_icon_font_dsc = {
+static lv_font_fmt_txt_dsc_t otto_icon_font_dsc = {
 #endif
     .glyph_bitmap = glyph_bitmap,
     .glyph_dsc = glyph_dsc,
@@ -95,14 +95,14 @@ static lv_font_fmt_txt_dsc_t puppy_icon_font_dsc = {
 
 /*Initialize a public general font descriptor*/
 #if LVGL_VERSION_MAJOR >= 8
-const lv_font_t PUPPY_ICON_FONT = {
+const lv_font_t OTTO_ICON_FONT = {
 #else
-lv_font_t PUPPY_ICON_FONT = {
+lv_font_t OTTO_ICON_FONT = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt, /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt, /*Function pointer to get glyph's bitmap*/
     .line_height = 18,                              /*The maximum line height required by the font*/
-    .base_line = 1,                                 /*Baseline measured from the bpuppym of the line*/
+    .base_line = 1,                                 /*Baseline measured from the bottom of the line*/
 #if !(LVGL_VERSION_MAJOR == 6 && LVGL_VERSION_MINOR == 0)
     .subpx = LV_FONT_SUBPX_NONE,
 #endif
@@ -111,11 +111,11 @@ lv_font_t PUPPY_ICON_FONT = {
     .underline_thickness = 0,
 #endif
     .static_bitmap = 0,
-    .dsc = &puppy_icon_font_dsc, /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
+    .dsc = &otto_icon_font_dsc, /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 #if LV_VERSION_CHECK(8, 2, 0) || LVGL_VERSION_MAJOR >= 9
     .fallback = NULL,
 #endif
     .user_data = NULL,
 };
 
-#endif /*#if ENABLE_PUPPY_ICON_FONT*/
+#endif /*#if ENABLE_OTTO_ICON_FONT*/

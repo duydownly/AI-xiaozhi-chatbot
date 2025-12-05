@@ -41,17 +41,16 @@ void WifiBoard::EnterWifiConfigMode() {
     wifi_ap.SetSsidPrefix("Xiaozhi");
     wifi_ap.Start();
 
-    // 等待 1.5 秒显示开发板信息
+    // Wait 1.5 seconds to display board information
     vTaskDelay(pdMS_TO_TICKS(1500));
 
-    // 显示 WiFi 配置 AP 的 SSID 和 Web 服务器 URL
+    // Display WiFi configuration AP SSID and web server URL
     std::string hint = Lang::Strings::CONNECT_TO_HOTSPOT;
     hint += wifi_ap.GetSsid();
     hint += Lang::Strings::ACCESS_VIA_BROWSER;
     hint += wifi_ap.GetWebServerUrl();
-    hint += "\n\n";
     
-    // 播报配置 WiFi 的提示
+    // Announce WiFi configuration prompt
     application.Alert(Lang::Strings::WIFI_CONFIG_MODE, hint.c_str(), "gear", Lang::Sounds::OGG_WIFICONFIG);
 
     #if CONFIG_USE_ACOUSTIC_WIFI_PROVISIONING
@@ -104,7 +103,12 @@ void WifiBoard::StartNetwork() {
         std::string notification = Lang::Strings::CONNECTED_TO;
         notification += ssid;
         display->ShowNotification(notification.c_str(), 30000);
-    });
+
+    // 🔥 Print IP Address to serial monitor
+    ESP_LOGI(TAG, "Connected to %s, IP: %s",
+             ssid.c_str(),
+             WifiStation::GetInstance().GetIpAddress().c_str());
+});
     wifi_station.Start();
 
     // Try to connect to WiFi, if failed, launch the WiFi configuration AP
@@ -175,9 +179,9 @@ void WifiBoard::ResetWifiConfiguration() {
 
 std::string WifiBoard::GetDeviceStatusJson() {
     /*
-     * 返回设备状态JSON
+     * Return device status JSON
      * 
-     * 返回的JSON结构如下：
+     * The returned JSON structure is as follows:
      * {
      *     "audio_speaker": {
      *         "volume": 70

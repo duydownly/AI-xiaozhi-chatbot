@@ -14,20 +14,22 @@
 #include "lamp_controller.h"
 #include "led/single_led.h"
 #include "mcp_server.h"
-#include "puppy_emoji_display.h"
+#include "otto_emoji_display.h"
 #include "power_manager.h"
 #include "system_reset.h"
 #include "wifi_board.h"
+#include "websocket_control_server.h"
 
-#define TAG "PuppyRobot"
+#define TAG "ZeriRobot"
 
-extern void InitializePuppyController();
+extern void InitializeZeriController();
 
-class PuppyRobot : public WifiBoard {
+class ZeriRobot : public WifiBoard {
 private:
     LcdDisplay* display_;
     PowerManager* power_manager_;
     Button boot_button_;
+    WebSocketControlServer* ws_control_server_;
     void InitializePowerManager() {
         power_manager_ =
             new PowerManager(POWER_CHARGE_DETECT_PIN, POWER_ADC_UNIT, POWER_ADC_CHANNEL);
@@ -73,7 +75,7 @@ private:
         esp_lcd_panel_swap_xy(panel, DISPLAY_SWAP_XY);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
 
-        display_ = new PuppyEmojiDisplay(
+        display_ = new OttoEmojiDisplay(
             panel_io, panel, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
             DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY);
     }
@@ -89,18 +91,38 @@ private:
         });
     }
 
-    void InitializePuppyController() {
-        ESP_LOGI(TAG, "Đang khởi tạo bộ điều khiển MCP cho robot Puppy");
-        ::InitializePuppyController();
+    void InitializeZeriController() {
+        ESP_LOGI(TAG, "初始化Zeri机器人MCP控制器");
+        ::InitializeZeriController();
+    }
+
+    void InitializeWebSocketControlServer() {
+        ESP_LOGI(TAG, "初始化WebSocket控制服务器");
+        ws_control_server_ = new WebSocketControlServer();
+        if (!ws_control_server_->Start(8080)) {
+            ESP_LOGE(TAG, "Failed to start WebSocket control server");
+            delete ws_control_server_;
+            ws_control_server_ = nullptr;
+        } else {
+            ESP_LOGI(TAG, "WebSocket control server started on port 8080");
+        }
+    }
+
+    void StartNetwork() override {
+        WifiBoard::StartNetwork();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        
+        InitializeWebSocketControlServer();
     }
 
 public:
-    PuppyRobot() : boot_button_(BOOT_BUTTON_GPIO) {
+    ZeriRobot() : boot_button_(BOOT_BUTTON_GPIO) {
         InitializeSpi();
         InitializeLcdDisplay();
         InitializeButtons();
         InitializePowerManager();
-        InitializePuppyController();
+        InitializeZeriController();
+        ws_control_server_ = nullptr;
         GetBacklight()->RestoreBrightness();
     }
 
@@ -126,4 +148,4 @@ public:
     }
 };
 
-DECLARE_BOARD(PuppyRobot);
+DECLARE_BOARD(ZeriRobot);
