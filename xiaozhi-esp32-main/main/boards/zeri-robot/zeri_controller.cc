@@ -179,8 +179,18 @@ public:
     //-------------------------------------------------------
     void RegisterTools() {
         auto& m = McpServer::GetInstance();
+        //Get ip
+        // GET WIFI IP
+    m.AddTool("self.zeri.get_ip_address",
+    "Return current Wi-Fi IP address",
+    PropertyList(),
+    [](const PropertyList&)->ReturnValue {
+        return WifiStation::GetInstance().GetIpAddress();
+    }
+);
 
         // BASIC ACTIONS
+
         m.AddTool("self.zeri.action",
             "walk / turn / sit / swing / shake_tail / home",
             PropertyList({

@@ -71,54 +71,78 @@ void WifiBoard::EnterWifiConfigMode() {
 }
 
 void WifiBoard::StartNetwork() {
-    // User can press BOOT button while starting to enter WiFi configuration mode
+
+    ESP_LOGI(TAG, "===== WifiBoard::StartNetwork() =====");
+
+    auto &wifi_station = WifiStation::GetInstance();
+
+    // ⭐ Bước 1: Luôn luôn load danh sách Wi-Fi từ NVS trước
+    auto &manager = SsidManager::GetInstance();
+    auto list = manager.GetSsidList();
+
+    ESP_LOGI(TAG, "Saved Wi-Fi count: %d", list.size());
+
+    for (auto &item : list) {
+        ESP_LOGI(TAG, "Loading WiFi: ssid=%s password_len=%d",
+                 item.ssid.c_str(), item.password.size());
+        wifi_station.AddAuth(item.ssid, item.password);
+    }
+
+    // ⭐ Bước 2: Nếu người dùng nhấn BOOT hoặc force_ap=1 → vào AP Mode
     if (wifi_config_mode_) {
+        ESP_LOGW(TAG, "wifi_config_mode_ = TRUE → entering AP config mode");
         EnterWifiConfigMode();
         return;
     }
 
-    // If no WiFi SSID is configured, enter WiFi configuration mode
-    auto& ssid_manager = SsidManager::GetInstance();
-    auto ssid_list = ssid_manager.GetSsidList();
-    if (ssid_list.empty()) {
+    // ⭐ Bước 3: Nếu danh sách SSID rỗng → vào AP Mode
+    if (list.empty()) {
+        ESP_LOGW(TAG, "No saved WiFi → entering AP config mode");
         wifi_config_mode_ = true;
         EnterWifiConfigMode();
         return;
     }
 
-    auto& wifi_station = WifiStation::GetInstance();
+    // ⭐ Bước 4: Cấu hình sự kiện
     wifi_station.OnScanBegin([this]() {
+        ESP_LOGI(TAG, "Start scanning WiFi...");
         auto display = Board::GetInstance().GetDisplay();
         display->ShowNotification(Lang::Strings::SCANNING_WIFI, 30000);
     });
-    wifi_station.OnConnect([this](const std::string& ssid) {
+
+    wifi_station.OnConnect([this](const std::string &ssid) {
+        ESP_LOGI(TAG, "Trying to connect to: %s", ssid.c_str());
         auto display = Board::GetInstance().GetDisplay();
         std::string notification = Lang::Strings::CONNECT_TO;
         notification += ssid;
         notification += "...";
         display->ShowNotification(notification.c_str(), 30000);
     });
-    wifi_station.OnConnected([this](const std::string& ssid) {
+
+    wifi_station.OnConnected([this](const std::string &ssid) {
+        ESP_LOGI(TAG, "Connected successfully to: %s", ssid.c_str());
         auto display = Board::GetInstance().GetDisplay();
         std::string notification = Lang::Strings::CONNECTED_TO;
         notification += ssid;
         display->ShowNotification(notification.c_str(), 30000);
+    });
 
-    // 🔥 Print IP Address to serial monitor
-    ESP_LOGI(TAG, "Connected to %s, IP: %s",
-             ssid.c_str(),
-             WifiStation::GetInstance().GetIpAddress().c_str());
-});
+    // ⭐ Bước 5: Bắt đầu kết nối
+    ESP_LOGI(TAG, "Starting WifiStation...");
     wifi_station.Start();
 
-    // Try to connect to WiFi, if failed, launch the WiFi configuration AP
+    // ⭐ Bước 6: Chờ kết nối
     if (!wifi_station.WaitForConnected(60 * 1000)) {
+        ESP_LOGE(TAG, "Cannot connect to any saved Wi-Fi. Switching to AP mode...");
         wifi_station.Stop();
         wifi_config_mode_ = true;
         EnterWifiConfigMode();
         return;
     }
+
+    ESP_LOGI(TAG, "Wi-Fi connection established successfully.");
 }
+
 
 NetworkInterface* WifiBoard::GetNetwork() {
     static EspNetwork network;

@@ -19,6 +19,7 @@ public:
     virtual void ResetWifiConfiguration();
     virtual AudioCodec* GetAudioCodec() override { return nullptr; }
     virtual std::string GetDeviceStatusJson() override;
+    std::string GetIpAddress();
 };
 
 #endif // WIFI_BOARD_H

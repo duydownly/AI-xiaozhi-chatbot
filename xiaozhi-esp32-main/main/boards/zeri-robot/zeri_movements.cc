@@ -3,6 +3,7 @@
 #include "freertos/idf_additions.h"
 #include "oscillator.h"
 #include <algorithm>
+#include <cmath>
 
 static const char* TAG = "ZeriMovements";
 
@@ -161,23 +162,40 @@ void Zeri::SetRestState(bool s) { is_zeri_resting_ = s; }
 ///////////////////////////////////////////////////////////
 // WALK
 ///////////////////////////////////////////////////////////
+void Zeri::Walk(float steps, int period, int direction)
+{
+    // Biên độ dao động của chân trước
+    int A[SERVO_COUNT] = {
+        25,  // FL dao động nhẹ, thấp
+        25,  // FR dao động nhẹ, thấp
+        0,   // BL cố định
+        0,   // BR cố định
+        3    // tail nhẹ
+    };
 
-void Zeri::Walk(float steps, int period, int direction) {
+    // Offset mới:
+    //  - Chân trước thấp xuống
+    //  - Chân sau đứng thẳng (90°)
+    int O[SERVO_COUNT] = {
+        60,  // FL đặt thấp xuống
+        120, // FR đặt thấp (đối xứng cơ khí)
+        90,  // BL thẳng đứng
+        90,  // BR thẳng đứng
+        0
+    };
 
-    int A[SERVO_COUNT] = { 30, 30, 30, 30, 10 };
-    int O[SERVO_COUNT] = { 0, 0, 5, -5, 0 };
-
-    double P[SERVO_COUNT] =
-    {
-        0,
-        0,
-        DEG2RAD(direction * -90),
-        DEG2RAD(direction * -90),
+    // Pha dao động:
+    double P[SERVO_COUNT] = {
+        DEG2RAD(0),       // FL
+        DEG2RAD(180),     // FR
+        0,                // BL cố định
+        0,                // BR cố định
         0
     };
 
     Execute(A, O, period, P, steps);
 }
+
 
 ///////////////////////////////////////////////////////////
 // TURN
@@ -218,15 +236,56 @@ void Zeri::ShakeTail(float steps, int period, int amplitude) {
 ///////////////////////////////////////////////////////////
 
 void Zeri::Sit() {
-    int t[SERVO_COUNT] = {
-        120, // FL
-        60,  // FR
-        30,  // BL
-        150, // BR
-        90   // tail
+
+    // Giữ nguyên góc 2 chân trước
+    int fl = servo_[FRONT_LEFT_LEG].GetPosition();
+    int fr = servo_[FRONT_RIGHT_LEG].GetPosition();
+
+    // Góc mục tiêu để ngồi
+    int target_bl = 30;
+    int target_br = 180 - 30;
+
+    // Đuôi
+    int tail_center = servo_[TAIL_SERVO].GetPosition();
+
+    // Số bước chia nhỏ để chuyển động chậm
+    const int steps = 20;
+    const int delay_ms = 30;   // càng lớn càng chậm
+
+    for (int i = 0; i <= steps; i++) {
+
+        float k = (float)i / steps;  // từ 0 → 1
+
+        int bl = fl + (target_bl - fl) * k;
+        int br = fr + (target_br - fr) * k;
+
+        // Lắc đuôi nhẹ nhẹ lúc đang ngồi (biên độ 5 độ)
+        int tail = tail_center + sin(i * 0.4f) * 30;
+
+        int t[SERVO_COUNT] = {
+            fl,     // FL giữ nguyên
+            fr,     // FR giữ nguyên
+            bl,     // BL tiến dần đến target
+            br,     // BR tiến dần đến target
+            tail    // đuôi lắc lư
+        };
+
+        MoveServos(10, t);     // mỗi lần chỉnh 10ms
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    }
+
+    // Khi ngồi xong, đưa đuôi về giữa và đứng yên
+    int t_end[SERVO_COUNT] = {
+        fl,
+        fr,
+        target_bl,
+        target_br,
+        tail_center
     };
-    MoveServos(600, t);
+
+    MoveServos(300, t_end);
 }
+
 
 ///////////////////////////////////////////////////////////
 // SWING

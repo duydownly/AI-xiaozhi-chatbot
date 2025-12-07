@@ -75,7 +75,6 @@ public:
     // Motion presets (supported for 4 legs + tail)
     void Walk(float steps = 4, int period = 1000, int direction = FORWARD);
     void Turn(float steps = 4, int period = 900, int direction = LEFT);
-
     void Swing(float steps = 1, int period = 1000, int height = 20);
     void UpDown(float steps = 1, int period = 900, int height = 20);
 

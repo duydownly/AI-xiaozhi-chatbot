@@ -2,6 +2,7 @@
  * MCP Server Implementation
  * Reference: https://modelcontextprotocol.io/specification/2024-11-05
  */
+#include "wifi_station.h"
 
 #include "mcp_server.h"
 #include <esp_log.h>
@@ -41,7 +42,13 @@ void McpServer::AddCommonTools() {
 
     // Do not add custom tools here.
     // Custom tools must be added in the board's InitializeTools function.
-
+    AddTool("self.get_ip_address",
+        "Retrieve the current IP address of the device.",
+        PropertyList(),
+        [](const PropertyList& properties) -> ReturnValue {
+            return WifiStation::GetInstance().GetIpAddress();
+        });
+    
     AddTool("self.get_device_status",
         "Provides the real-time information of the device, including the current status of the audio speaker, screen, battery, network, etc.\n"
         "Use this tool for: \n"
